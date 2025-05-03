@@ -23,49 +23,65 @@ def classify(row):
     return "Обычный"
 
 if wb_file and unit_file:
-    wb_sheets = pd.read_excel(wb_file, sheet_name=None)
-    wb_data = wb_sheets['Товары'].iloc[1:].copy()
-    wb_data.columns = wb_sheets['Товары'].iloc[0]
+    try:
+        wb_sheets = pd.read_excel(wb_file, sheet_name=None)
+        if "Товары" not in wb_sheets:
+            st.error("❌ Файл WB не содержит листа 'Товары'. Проверьте файл.")
+            st.stop()
 
-    df_wb = wb_data[[
-        "Артикул продавца", "Название", "Средняя цена, ₽", "Среднее количество заказов в день, шт",
-        "Остатки склад ВБ, шт", "Остатки МП, шт"
-    ]].copy()
-    df_wb.columns = ["Артикул", "Название", "Средняя цена", "Продаж в день", "Остаток ВБ", "Остаток МП"]
-    df_wb["Продаж за неделю"] = (pd.to_numeric(df_wb["Продаж в день"], errors="coerce") * 7).round()
+        wb_data = wb_sheets["Товары"].iloc[1:].copy()
+        wb_data.columns = wb_sheets["Товары"].iloc[0]
 
-    unit_raw = pd.read_excel(unit_file)
-    unit_raw["Название"] = unit_raw.iloc[:, 0]
-    unit_raw["Себестоимость"] = pd.to_numeric(unit_raw.iloc[:, 8], errors="coerce")
-    unit_raw["ROI"] = pd.to_numeric(unit_raw.iloc[:, 19], errors="coerce")
-    unit_raw["Прибыль с 1 шт"] = pd.to_numeric(unit_raw.iloc[:, 28], errors="coerce")
-    unit_clean = unit_raw[["Название", "Себестоимость", "ROI", "Прибыль с 1 шт"]].dropna()
+        required_columns = [
+            "Артикул продавца", "Название", "Средняя цена, ₽",
+            "Среднее количество заказов в день, шт",
+            "Остатки склад ВБ, шт", "Остатки МП, шт"
+        ]
 
-    def match_name(name, choices):
-        match = difflib.get_close_matches(name, choices, n=1, cutoff=0.4)
-        return match[0] if match else None
+        for col in required_columns:
+            if col not in wb_data.columns:
+                st.error(f"❌ В отчёте WB не хватает колонки: {col}")
+                st.stop()
 
-    df_wb["Название юнит"] = df_wb["Название"].apply(lambda x: match_name(x, unit_clean["Название"]))
-    df_merged = pd.merge(df_wb, unit_clean, left_on="Название юнит", right_on="Название", how="left")
+        df_wb = wb_data[required_columns].copy()
+        df_wb.columns = ["Артикул", "Название", "Средняя цена", "Продаж в день", "Остаток ВБ", "Остаток МП"]
+        df_wb["Продаж за неделю"] = (pd.to_numeric(df_wb["Продаж в день"], errors="coerce") * 7).round()
 
-    df_merged["Чистая прибыль за неделю"] = (df_merged["Продаж за неделю"] * df_merged["Прибыль с 1 шт"]).round(2)
-    df_merged["Статус"] = df_merged.apply(classify, axis=1)
+        unit_raw = pd.read_excel(unit_file)
+        unit_raw["Название"] = unit_raw.iloc[:, 0]
+        unit_raw["Себестоимость"] = pd.to_numeric(unit_raw.iloc[:, 8], errors="coerce")
+        unit_raw["ROI"] = pd.to_numeric(unit_raw.iloc[:, 19], errors="coerce")
+        unit_raw["Прибыль с 1 шт"] = pd.to_numeric(unit_raw.iloc[:, 28], errors="coerce")
+        unit_clean = unit_raw[["Название", "Себестоимость", "ROI", "Прибыль с 1 шт"]].dropna()
 
-    st.success("✅ Отчёт готов")
-    st.dataframe(df_merged, use_container_width=True)
+        def match_name(name, choices):
+            match = difflib.get_close_matches(name, choices, n=1, cutoff=0.4)
+            return match[0] if match else None
 
-    def convert_df(df):
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name="Отчёт FORESTLOOK")
-        return output.getvalue()
+        df_wb["Название юнит"] = df_wb["Название"].apply(lambda x: match_name(x, unit_clean["Название"]))
+        df_merged = pd.merge(df_wb, unit_clean, left_on="Название юнит", right_on="Название", how="left")
 
-    excel_data = convert_df(df_merged)
-    filename = f"FORESTLOOK_отчет_{datetime.today().strftime('%Y-%m-%d')}.xlsx"
+        df_merged["Чистая прибыль за неделю"] = (df_merged["Продаж за неделю"] * df_merged["Прибыль с 1 шт"]).round(2)
+        df_merged["Статус"] = df_merged.apply(classify, axis=1)
 
-    st.download_button(
-        label="📥 Скачать Excel-отчёт",
-        data=excel_data,
-        file_name=filename,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        st.success("✅ Отчёт готов")
+        st.dataframe(df_merged, use_container_width=True)
+
+        def convert_df(df):
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name="Отчёт FORESTLOOK")
+            return output.getvalue()
+
+        excel_data = convert_df(df_merged)
+        filename = f"FORESTLOOK_отчет_{datetime.today().strftime('%Y-%m-%d')}.xlsx"
+
+        st.download_button(
+            label="📥 Скачать Excel-отчёт",
+            data=excel_data,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        st.error(f"❌ Ошибка: {str(e)}")
