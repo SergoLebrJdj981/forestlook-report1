@@ -57,6 +57,7 @@ if wb_file and unit_file:
         # Объединение только по тем артикулам, которые есть в WB-отчёте
         df_merged = pd.merge(df_wb, df_unit, how="left", left_on="Артикул", right_on="Артикул продавца")
 df_merged = df_merged[df_merged["Продаж за неделю"] > 0]
+
         df_merged["Чистая прибыль за неделю"] = (df_merged["Продаж за неделю"] * df_merged["Прибыль с 1 шт"]).round(2)
         df_merged["Статус"] = df_merged.apply(classify, axis=1)
 
