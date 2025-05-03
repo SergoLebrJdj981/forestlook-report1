@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import difflib
 from io import BytesIO
 from datetime import datetime
 
@@ -37,7 +36,6 @@ if wb_file and unit_file:
             "Среднее количество заказов в день, шт",
             "Остатки склад ВБ, шт", "Остатки МП, шт"
         ]
-
         for col in required_columns:
             if col not in wb_data.columns:
                 st.error(f"❌ В отчёте WB не хватает колонки: {col}")
@@ -47,20 +45,14 @@ if wb_file and unit_file:
         df_wb.columns = ["Артикул", "Название", "Средняя цена", "Продаж в день", "Остаток ВБ", "Остаток МП"]
         df_wb["Продаж за неделю"] = (pd.to_numeric(df_wb["Продаж в день"], errors="coerce") * 7).round()
 
-        unit_raw = pd.read_excel(unit_file)
-        unit_raw["Название"] = unit_raw.iloc[:, 0]
-        unit_raw["Себестоимость"] = pd.to_numeric(unit_raw.iloc[:, 8], errors="coerce")
-        unit_raw["ROI"] = pd.to_numeric(unit_raw.iloc[:, 19], errors="coerce")
-        unit_raw["Прибыль с 1 шт"] = pd.to_numeric(unit_raw.iloc[:, 28], errors="coerce")
-        unit_clean = unit_raw[["Название", "Себестоимость", "ROI", "Прибыль с 1 шт"]].dropna()
+        df_unit = pd.read_excel(unit_file)
+        expected_cols = ["Артикул продавца", "Себестоимость", "ROI", "Прибыль с 1 шт"]
+        for col in expected_cols:
+            if col not in df_unit.columns:
+                st.error(f"❌ В юнит-экономике не хватает колонки: {col}")
+                st.stop()
 
-        def match_name(name, choices):
-            match = difflib.get_close_matches(name, choices, n=1, cutoff=0.4)
-            return match[0] if match else None
-
-        df_wb["Название юнит"] = df_wb["Название"].apply(lambda x: match_name(x, unit_clean["Название"]))
-        df_merged = pd.merge(df_wb, unit_clean, left_on="Название юнит", right_on="Название", how="left")
-
+        df_merged = pd.merge(df_wb, df_unit, how="left", left_on="Артикул", right_on="Артикул продавца")
         df_merged["Чистая прибыль за неделю"] = (df_merged["Продаж за неделю"] * df_merged["Прибыль с 1 шт"]).round(2)
         df_merged["Статус"] = df_merged.apply(classify, axis=1)
 
