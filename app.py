@@ -4,7 +4,7 @@ from io import BytesIO
 from datetime import datetime
 
 st.set_page_config(page_title="FORESTLOOK: Анализ прибыли", layout="wide")
-st.title("📊 FORESTLOOK — Единый отчёт по прибыли за неделю")
+st.title("📊 FORESTLOOK — Прибыль за неделю")
 st.markdown("Загрузите два Excel-файла: Wildberries-отчёт и юнит-экономику")
 
 wb_file = st.file_uploader("📤 Отчёт Wildberries (.xlsx)", type="xlsx")
@@ -23,9 +23,10 @@ def classify(row):
 
 if wb_file and unit_file:
     try:
+        # Загрузка WB-отчёта
         wb_sheets = pd.read_excel(wb_file, sheet_name=None)
         if "Товары" not in wb_sheets:
-            st.error("❌ Файл WB не содержит листа 'Товары'. Проверьте файл.")
+            st.error("❌ В файле WB нет листа 'Товары'")
             st.stop()
 
         wb_data = wb_sheets["Товары"].iloc[1:].copy()
@@ -38,21 +39,24 @@ if wb_file and unit_file:
         ]
         for col in required_columns:
             if col not in wb_data.columns:
-                st.error(f"❌ В отчёте WB не хватает колонки: {col}")
+                st.error(f"❌ В отчёте WB нет колонки: {col}")
                 st.stop()
 
         df_wb = wb_data[required_columns].copy()
         df_wb.columns = ["Артикул", "Название", "Средняя цена", "Продаж в день", "Остаток ВБ", "Остаток МП"]
         df_wb["Продаж за неделю"] = (pd.to_numeric(df_wb["Продаж в день"], errors="coerce") * 7).round()
 
+        # Загрузка юнит-экономики
         df_unit = pd.read_excel(unit_file)
         expected_cols = ["Артикул продавца", "Себестоимость", "ROI", "Прибыль с 1 шт"]
         for col in expected_cols:
             if col not in df_unit.columns:
-                st.error(f"❌ В юнит-экономике не хватает колонки: {col}")
+                st.error(f"❌ В юнит-экономике нет колонки: {col}")
                 st.stop()
 
+        # Объединение только по тем артикулам, которые есть в WB-отчёте
         df_merged = pd.merge(df_wb, df_unit, how="left", left_on="Артикул", right_on="Артикул продавца")
+
         df_merged["Чистая прибыль за неделю"] = (df_merged["Продаж за неделю"] * df_merged["Прибыль с 1 шт"]).round(2)
         df_merged["Статус"] = df_merged.apply(classify, axis=1)
 
