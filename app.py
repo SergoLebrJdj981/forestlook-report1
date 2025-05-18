@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+import traceback
 
 st.set_page_config(page_title="FORESTLOOK: Анализ прибыли", layout="wide")
 st.title("📊 FORESTLOOK — Отчёт по товарам с продажами")
@@ -23,8 +24,7 @@ def classify(row):
 
 if wb_file and unit_file:
     try:
-        # Загрузка WB-отчёта с оптимизацией загрузки
-        wb_sheets = pd.read_excel(wb_file, sheet_name=None, engine='openpyxl', nrows=1000)
+        wb_sheets = pd.read_excel(wb_file, sheet_name=None, engine='openpyxl')
 
         if "Товары" not in wb_sheets:
             st.error("❌ В файле WB нет листа 'Товары'")
@@ -39,10 +39,10 @@ if wb_file and unit_file:
             "Остатки склад ВБ, шт", "Остатки МП, шт"
         ]
 
-        for col in required_columns:
-            if col not in wb_data.columns:
-                st.error(f"❌ В отчёте WB нет колонки: {col}")
-                st.stop()
+        missing_cols = [col for col in required_columns if col not in wb_data.columns]
+        if missing_cols:
+            st.error(f"❌ Отсутствующие колонки в WB: {missing_cols}")
+            st.stop()
 
         df_wb = wb_data[required_columns].copy()
         df_wb.columns = ["Артикул", "Название", "Средняя цена", "Продаж в день", "Остаток ВБ", "Остаток МП"]
@@ -50,16 +50,14 @@ if wb_file and unit_file:
 
         df_wb = df_wb[df_wb["Продаж за неделю"] > 0]
 
-        # Загрузка юнит-экономики с оптимизацией загрузки
-        df_unit = pd.read_excel(unit_file, engine='openpyxl', nrows=1000)
+        df_unit = pd.read_excel(unit_file, engine='openpyxl')
 
         expected_cols = ["Артикул продавца", "Себестоимость", "ROI", "Прибыль с 1 шт"]
-        for col in expected_cols:
-            if col not in df_unit.columns:
-                st.error(f"❌ В юнит-экономике нет колонки: {col}")
-                st.stop()
+        missing_unit_cols = [col for col in expected_cols if col not in df_unit.columns]
+        if missing_unit_cols:
+            st.error(f"❌ Отсутствующие колонки в юнит-экономике: {missing_unit_cols}")
+            st.stop()
 
-        # Объединение по артикулу
         df_merged = pd.merge(df_wb, df_unit, how="left", left_on="Артикул", right_on="Артикул продавца")
 
         df_merged["Чистая прибыль за неделю"] = (
@@ -88,3 +86,4 @@ if wb_file and unit_file:
 
     except Exception as e:
         st.error(f"❌ Ошибка: {str(e)}")
+        st.code(traceback.format_exc())
