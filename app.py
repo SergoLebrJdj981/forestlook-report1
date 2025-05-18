@@ -25,12 +25,13 @@ if wb_file and unit_file:
     try:
         # Загрузка WB-отчёта
         wb_sheets = pd.read_excel(wb_file, sheet_name=None)
+
         if "Товары" not in wb_sheets:
             st.error("❌ В файле WB нет листа 'Товары'")
             st.stop()
 
-        wb_data = wb_sheets["Товары"].iloc[1:].copy()
-        wb_data.columns = wb_sheets["Товары"].iloc[0].ffill()
+        wb_data = wb_sheets["Товары"].iloc[2:].copy()
+        wb_data.columns = wb_sheets["Товары"].iloc[1].ffill()
 
         required_columns = [
             "Артикул продавца", "Название", "Средняя цена, ₽",
@@ -46,7 +47,6 @@ if wb_file and unit_file:
         df_wb.columns = ["Артикул", "Название", "Средняя цена", "Продаж в день", "Остаток ВБ", "Остаток МП"]
         df_wb["Продаж за неделю"] = (pd.to_numeric(df_wb["Продаж в день"], errors="coerce") * 7).round()
 
-        # Только товары с продажами
         df_wb = df_wb[df_wb["Продаж за неделю"] > 0]
 
         # Загрузка юнит-экономики
