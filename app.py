@@ -23,8 +23,8 @@ def classify(row):
 
 if wb_file and unit_file:
     try:
-        # Загрузка WB-отчёта
-        wb_sheets = pd.read_excel(wb_file, sheet_name=None)
+        # Загрузка WB-отчёта с оптимизацией загрузки
+        wb_sheets = pd.read_excel(wb_file, sheet_name=None, engine='openpyxl', nrows=1000)
 
         if "Товары" not in wb_sheets:
             st.error("❌ В файле WB нет листа 'Товары'")
@@ -38,6 +38,7 @@ if wb_file and unit_file:
             "Среднее количество заказов в день, шт",
             "Остатки склад ВБ, шт", "Остатки МП, шт"
         ]
+
         for col in required_columns:
             if col not in wb_data.columns:
                 st.error(f"❌ В отчёте WB нет колонки: {col}")
@@ -49,8 +50,9 @@ if wb_file and unit_file:
 
         df_wb = df_wb[df_wb["Продаж за неделю"] > 0]
 
-        # Загрузка юнит-экономики
-        df_unit = pd.read_excel(unit_file)
+        # Загрузка юнит-экономики с оптимизацией загрузки
+        df_unit = pd.read_excel(unit_file, engine='openpyxl', nrows=1000)
+
         expected_cols = ["Артикул продавца", "Себестоимость", "ROI", "Прибыль с 1 шт"]
         for col in expected_cols:
             if col not in df_unit.columns:
