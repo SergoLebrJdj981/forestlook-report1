@@ -6,7 +6,6 @@ import traceback
 
 st.set_page_config(page_title="FORESTLOOK: Анализ прибыли", layout="wide")
 st.title("📊 FORESTLOOK — Отчёт по товарам с продажами")
-st.markdown("Загрузите два Excel-файла: Wildberries-отчёт и юнит-экономику")
 
 wb_file = st.file_uploader("📤 Отчёт Wildberries (.xlsx)", type="xlsx")
 unit_file = st.file_uploader("📤 Юнит-экономика (.xlsx)", type="xlsx")
@@ -24,7 +23,7 @@ def classify(row):
 
 if wb_file and unit_file:
     try:
-        wb_sheets = pd.read_excel(wb_file, sheet_name=None, engine='openpyxl')
+        wb_sheets = pd.read_excel(wb_file, sheet_name=None)
 
         if "Товары" not in wb_sheets:
             st.error("❌ В файле WB нет листа 'Товары'")
@@ -50,7 +49,7 @@ if wb_file and unit_file:
 
         df_wb = df_wb[df_wb["Продаж за неделю"] > 0]
 
-        df_unit = pd.read_excel(unit_file, engine='openpyxl')
+        df_unit = pd.read_excel(unit_file)
 
         expected_cols = ["Артикул продавца", "Себестоимость", "ROI", "Прибыль с 1 шт"]
         missing_unit_cols = [col for col in expected_cols if col not in df_unit.columns]
