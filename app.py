@@ -30,7 +30,7 @@ if wb_file and unit_file:
             st.stop()
 
         wb_data = wb_sheets["Товары"].iloc[1:].copy()
-        wb_data.columns = wb_sheets["Товары"].iloc[0]
+        wb_data.columns = wb_sheets["Товары"].iloc[0].ffill()
 
         required_columns = [
             "Артикул продавца", "Название", "Средняя цена, ₽",
